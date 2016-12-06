@@ -1,11 +1,10 @@
 function writeVideo(filename)
 v = VideoReader(filename);
 vid_num = 0;
-while exist(sprintf('redone-%s%i',filename,vid_num),'file')==2
+while exist(sprintf('redone%i-%s',vid_num,filename),'file')==2
     vid_num = vid_num+1;
 end
-w = VideoWriter(sprintf('redone-%s%i',filename, vid_num), 'MPEG-4');
-
+w = VideoWriter(sprintf('redone%i-%s', vid_num,filename), 'MPEG-4');
 open(w);
 k = 1;
 j = 0;

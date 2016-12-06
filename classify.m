@@ -1,5 +1,5 @@
-%function classify(filename)
-filename = 'clowns.mp4'
+function classify(filename, cellSize, imageSize)
+%filename = 'parliament.mp4'
 v = VideoReader(filename);
 frames = length(dir(sprintf('./%s-detections',filename)));
 k = 1;
@@ -8,11 +8,8 @@ prev_locs = [];
 id =0;
 mkdir(sprintf('./%s-classified',filename));
 h = waitbar(0,sprintf('classifying faces in %s', filename));
-hog_8x8 = extractHOGFeatures(double(zeros(102, 102)),'CellSize',[8 8]);
-cellSize = [8 8];
-hogFeatureSize = length(hog_8x8);
-%gender_model  = load('./Face Data/images/classified/gender_model.mat');
-
+gender_model  = load(sprintf('./Face Data/images/classified/gender_model-%i-%i.mat', cellSize(1), imageSize(1)));
+gender_model = gender_model.gender_model;
 while hasFrame(v)
     waitbar(k / frames)
     centers = [];
@@ -25,11 +22,9 @@ while hasFrame(v)
         num_faces = size(detections.ds,1);
         for j = 1:num_faces
             centers(j,:) = [detections.ds(j,1)+(detections.ds(j,3)-detections.ds(j,1))/2 detections.ds(j,2)+(detections.ds(j,4)-detections.ds(j,2))/2];
-            x1 = detections.ds(j,2):detections.ds(j,4);
-            y1 = detections.ds(j,1):detections.ds(j,3);
-            x1 = round(x1(x1<=size(image,1)));
-            y1 = round(y1(y1<=size(image,2)));
-            faces{j,1} = image(x1 ,y1);
+            height = detections.ds(j,4)- detections.ds(j,2);
+            width = detections.ds(j,3)-detections.ds(j,1);
+            faces{j,1}  = imcrop(image, [detections.ds(j,1) detections.ds(j,2) width height]);
             faces{j,2} = 0;
         end
         
@@ -44,7 +39,7 @@ while hasFrame(v)
             for i = 1:num_faces
                 max_points = 0;
                 for j = 1:size(prev_faces,1)
-                [points, affine] = affine_t(faces{i,1}, prev_faces{j,1}, 0.75);
+                [points, affine] = affine_t(rgb2gray(faces{i,1}), rgb2gray(prev_faces{j,1}), 0.75);
                  if max_points < size(points, 1)
                     max_points = size(points, 1)
                     faces{i,2} = prev_faces{j,2};
@@ -58,9 +53,9 @@ while hasFrame(v)
                 else
                     detections.ds(i,7) = faces{i,2};
                 end
-                img = imresize(faces{i,1},[50 50]);
+                img = imresize(faces{i,1},imageSize);
                 features = extractHOGFeatures(img, 'CellSize', cellSize);
-                [predicted_label, accuracy, decision_values] = svmpredict(double(i), double(features), gender_model.gender_model);
+                [predicted_label, accuracy, decision_values] = svmpredict(double(i), double(features), gender_model);
                 detections.ds(i,8)=predicted_label;
                 faces{i,3} = predicted_label;
                 prev_faces{i,3} = predicted_label;
@@ -80,7 +75,7 @@ while hasFrame(v)
                 detections.ds(i,8) = prevd.ds(match,8);
             else
                 for j = 1:size(prev_faces,1)
-                [points, affine] = affine_t(faces{i,1}, prev_faces{j,1}, 0.75);
+                [points, affine] = affine_t(rgb2gray(faces{i,1}), rgb2gray(prev_faces{j,1}), 0.75);
                  if max_points < size(points, 1)
                     max_points = size(points, 1)
                     faces{i,2} = prev_faces{j,2};
@@ -93,9 +88,9 @@ while hasFrame(v)
                    
                     detections.ds(i,7) = faces{i,2};
                     
-                    img = imresize(faces{i,1},[50 50]);
+                    img = imresize(faces{i,1},imageSize);
                     features = extractHOGFeatures(img, 'CellSize', cellSize);
-                    [predicted_label, accuracy, decision_values] = svmpredict(double(i), double(features), gender_model.gender_model);
+                    [predicted_label, accuracy, decision_values] = svmpredict(double(i), double(features), gender_model);
                     detections.ds(i,8)=predicted_label;
                     faces{i,3} = predicted_label;
                     prev_faces = [prev_faces; faces(i,:)]
@@ -116,4 +111,4 @@ while hasFrame(v)
         k = k+1
     end
     close(h);
-%end
+end
